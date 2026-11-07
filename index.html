@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>15+2 Daily Research</title>
+<style>
+:root{--bg:#faf8f4;--card:#fff;--text:#1f1d1a;--muted:#6b665e;--accent:#b4491f;--line:#e5e0d6}
+@media (prefers-color-scheme:dark){:root{--bg:#171614;--card:#201f1c;--text:#f0ede6;--muted:#a09a8e;--accent:#e8845a;--line:#33312c}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:17px/1.55 Georgia,serif}
+main{max-width:680px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:1.1rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
+.tag{display:inline-block;font:600 .75rem system-ui,sans-serif;color:var(--accent);text-transform:uppercase;letter-spacing:.08em}
+h2{margin:6px 0 10px;font-size:1.7rem;line-height:1.2}
+.q{font-size:1.15rem;border-left:3px solid var(--accent);padding-left:12px;margin:14px 0}
+h3{font:600 .85rem system-ui,sans-serif;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:22px 0 6px}
+ul,ol{margin:0;padding-left:22px}li{margin:4px 0}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0;font-family:system-ui,sans-serif}
+button,select{font:inherit;font-size:.9rem;padding:9px 14px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.timer{font:700 1.6rem system-ui,sans-serif;font-variant-numeric:tabular-nums;margin-right:6px}
+.note{font-size:.9rem;color:var(--muted);margin-top:18px}
+</style>
+</head>
+<body>
+<main>
+<h1>15 + 2 · Daily Research</h1>
+<div class="row">
+  <button class="primary" id="today">Today's topic</button>
+  <button id="shuffle">Shuffle</button>
+  <select id="cat"></select>
+</div>
+<article class="card" id="topic"></article>
+<div class="row">
+  <span class="timer" id="clock">15:00</span>
+  <button id="t15">Start 15 min</button>
+  <button id="t2">Start 2 min</button>
+  <button id="stop">Reset</button>
+</div>
+<p class="note" id="count"></p>
+</main>
+<script src="topics.js"></script>
+<script>
+const SEEN_KEY = 'seen15plus2';
+const cats = [...new Set(TOPICS.map(t => t[0]))];
+const catSel = document.getElementById('cat');
+catSel.innerHTML = '<option value="">All categories</option>' + cats.map(c => `<option>${c}</option>`).join('');
+document.getElementById('count').textContent = `${TOPICS.length} topics in the library.`;
+
+const load = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY)) || []; } catch { return []; } };
+const save = s => { try { localStorage.setItem(SEEN_KEY, JSON.stringify(s)); } catch {} };
+
+function render(i) {
+  const [c, title, q, angles] = TOPICS[i];
+  const list = angles.split('|').map(a => `<li>${a.trim()}</li>`).join('');
+  document.getElementById('topic').innerHTML = `
+    <span class="tag">${c}</span>
+    <h2>${title}</h2>
+    <p class="q">${q}</p>
+    <h3>Investigate in 15 minutes</h3><ul>${list}</ul>
+    <h3>Your 2-minute explanation</h3>
+    <ol>
+      <li><b>What it is</b>: one clear sentence</li>
+      <li><b>Why it matters</b> or why it's interesting</li>
+      <li><b>Key discovery</b> or main finding</li>
+      <li><b>Surprising detail</b></li>
+      <li><b>Takeaway</b>: what you now understand</li>
+    </ol>
+    <p class="note">Check credible sources (universities, journals, major archives, reputable news). Label each claim as established fact or disputed theory.</p>`;
+}
+
+// Today's topic: rotates category daily, then moves through that category's topics
+function todayIndex() {
+  const day = Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / 86400000);
+  const c = cats[day % cats.length];
+  const pool = TOPICS.map((t, i) => i).filter(i => TOPICS[i][0] === c);
+  return pool[Math.floor(day / cats.length) % pool.length];
+}
+
+// Shuffle: random topic not yet seen; resets when everything has been seen
+function shuffle() {
+  const f = catSel.value;
+  let seen = load();
+  let pool = TOPICS.map((t, i) => i).filter(i => (!f || TOPICS[i][0] === f) && !seen.includes(i));
+  if (!pool.length) { seen = seen.filter(i => f && TOPICS[i][0] !== f); pool = TOPICS.map((t, i) => i).filter(i => !f || TOPICS[i][0] === f); }
+  const i = pool[Math.floor(Math.random() * pool.length)];
+  seen.push(i); save(seen); render(i);
+}
+
+let tick, left;
+function start(min) {
+  clearInterval(tick); left = min * 60; show();
+  tick = setInterval(() => { left--; show(); if (left <= 0) { clearInterval(tick); alert('Time is up!'); } }, 1000);
+}
+const show = () => document.getElementById('clock').textContent = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
+
+document.getElementById('today').onclick = () => render(todayIndex());
+document.getElementById('shuffle').onclick = shuffle;
+document.getElementById('t15').onclick = () => start(15);
+document.getElementById('t2').onclick = () => start(2);
+document.getElementById('stop').onclick = () => { clearInterval(tick); left = 900; show(); };
+render(todayIndex());
+</script>
+</body>
+</html>
